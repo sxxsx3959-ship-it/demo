@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
-    "build": "next build",
+    "build": "node scripts/prepare-static.cjs && next build",
     "start": "node scripts/serve-static.cjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && playwright test",
