@@ -5,10 +5,10 @@
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "start": "next start --hostname 0.0.0.0",
+    "start": "node scripts/serve-static.cjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && playwright test",
-    "setup:owner": "node scripts/setup-owner.cjs"
+    "setup:owner": "node scripts/sync-local-password.cjs"
   },
   "dependencies": {
     "next": "16.4.6",
@@ -23,6 +23,6 @@
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": "24.x"
   }
 }
