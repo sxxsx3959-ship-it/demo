@@ -8,7 +8,7 @@ export default function RestaurantWelcome({ onStory }: { onStory: () => void }) 
     <div className="container welcome-layout">
       <div className="welcome-copy">
         <p className="welcome-kicker"><span/> أصالة يمنية. ضيافة ناصرية.</p>
-        <h1 id="welcome-title">حضرموت <em>اليمني</em></h1>
+        <h1 id="welcome-title">وكالة حضرموت <em>اليمني</em></h1>
         <p className="welcome-tagline">مندي على الأصول… ولَمّة تطيب.</p>
         <p className="welcome-intro">حياكم على سفرتنا في الناصرية.<br/>اطلب وجبتك، تواصل ويانا، أو تعال شرّفنا.</p>
         <div className="welcome-contacts" aria-label="تواصل مع حضرموت اليمني">
