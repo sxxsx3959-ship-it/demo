@@ -8,9 +8,11 @@
     "start": "node scripts/serve-static.cjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && playwright test",
-    "setup:owner": "node scripts/sync-local-password.cjs"
+    "setup:owner": "node scripts/sync-local-password.cjs",
+    "supabase:migrate": "node scripts/migrate-to-supabase.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1"

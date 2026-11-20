@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-type IconName = "arrow" | "leaf" | "glass" | "people" | "utensils" | "heart" | "case" | "cake" | "calendar" | "clock" | "pin" | "mail" | "phone" | "star" | "plus" | "close" | "menu" | "instagram" | "facebook" | "play" | "check" | "bag" | "minus" | "trash" | "truck" | "store" | "whatsapp";
+type IconName = "arrow" | "leaf" | "glass" | "people" | "utensils" | "heart" | "case" | "cake" | "calendar" | "clock" | "pin" | "mail" | "phone" | "star" | "plus" | "close" | "menu" | "instagram" | "facebook" | "play" | "check" | "bag" | "minus" | "trash" | "truck" | "store" | "whatsapp" | "tag";
 export function Icon({ name, size = 22, className = "" }: { name: IconName; size?: number; className?: string }) {
   const paths: Record<IconName, ReactNode> = {
+    tag: <><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><circle cx="7" cy="7" r="1.5"/></>,
     whatsapp: <><path d="m3 21 1.3-4.4A9 9 0 1 1 8 20.1L3 21Z"/><path d="M8 7c-2 3 3 9 7 9l2-2-3-2-1 1c-2-1-3-2-3-3l1-1-1-2H8Z"/></>,
     bag: <><path d="M5 7h14l2 14H3L5 7Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></>,
     minus: <path d="M5 12h14"/>,

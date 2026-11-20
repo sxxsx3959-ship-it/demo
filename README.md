@@ -12,7 +12,7 @@
     npm run build
     npm start
 
-افتح http://localhost:3000. يتطلب البناء Node.js 24.x. Vercel يبني المشروع ويعرض مجلد out حسب vercel.json.
+افتح http://localhost:3000. يتطلب البناء Node.js 24.x. Vercel يستخدم إعداد Other عبر framework: null، ويبني مشروع Next.js ثم يعرض مجلد out حسب vercel.json.
 
 ## البيانات والصور
 

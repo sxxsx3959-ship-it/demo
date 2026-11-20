@@ -28,7 +28,11 @@ export const dishes: Dish[] = [
   { id: 263, category: "chicken", title: "مجبوس دجاج", sub: "نصف دجاجة مع الأرز", price: 11000, image: "majboos", description: "مجبوس دجاج — نصف حبة. غير متوفر حاليًا.", available: false },
 ];
 export const money = (value: number) => new Intl.NumberFormat("en-US").format(value);
-export const dishImage = (name: string) => `/images/hadramout/${name}.jpg`;
+export const dishImage = (name: string) => {
+  if (!name) return "/images/hadramout/whole.jpg";
+  if (name.startsWith("http://") || name.startsWith("https://") || name.startsWith("/")) return name;
+  return `/images/hadramout/${name}.jpg`;
+};
 export const CART_KEY = "hadramout-cart-v1";
 export const MAX_QUANTITY = 99;
 export type CartItem = { id: number; quantity: number };
@@ -40,4 +44,38 @@ export function sanitizeCart(value: unknown, menu = dishes): CartItem[] {
     seen.add(item.id);
     return [{ id: item.id, quantity: Math.min(item.quantity, MAX_QUANTITY) }];
   });
+}
+
+export type Coupon = {
+  id: string;
+  code: string;
+  discountType: "percent" | "fixed";
+  discountValue: number;
+  minOrder: number;
+  maxUses: number;
+  usedCount: number;
+  active: boolean;
+};
+
+export function normalizeCouponCode(value: string) {
+  return value.trim().toUpperCase().replace(/\s+/g, "");
+}
+
+export function isCouponExhausted(coupon: Coupon | null | undefined): boolean {
+  if (!coupon) return false;
+  return coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses;
+}
+
+export function isCouponUsable(coupon: Coupon | null | undefined): boolean {
+  return Boolean(coupon && coupon.active && !isCouponExhausted(coupon));
+}
+
+export function calculateDiscount(subtotal: number, coupon: Coupon | null | undefined): number {
+  if (!isCouponUsable(coupon) || !coupon || subtotal <= 0) return 0;
+  if (coupon.minOrder > 0 && subtotal < coupon.minOrder) return 0;
+  if (coupon.discountType === "percent") {
+    const pct = Math.max(0, Math.min(100, coupon.discountValue));
+    return Math.min(subtotal, Math.round((subtotal * pct) / 100));
+  }
+  return Math.min(subtotal, Math.max(0, Math.round(coupon.discountValue)));
 }
