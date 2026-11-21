@@ -79,6 +79,7 @@ async function fetchSupabaseCatalog() {
 
     let accepting = currentCatalog.accepting;
     let couponsEnabled = currentCatalog.couponsEnabled;
+    let featuredCouponCode = currentCatalog.featuredCouponCode;
     if (settingsRes.data) {
       const acceptingSetting = settingsRes.data.find((s: any) => s.key === "accepting_orders");
       if (acceptingSetting) {
@@ -94,6 +95,12 @@ async function fetchSupabaseCatalog() {
           typeof couponsSetting.value === "boolean"
             ? couponsSetting.value
             : couponsSetting.value === "true" || couponsSetting.value === true;
+      }
+
+      const featuredSetting = settingsRes.data.find((s: any) => s.key === "featured_coupon_code");
+      if (featuredSetting) {
+        const rawCode = typeof featuredSetting.value === "string" ? normalizeCouponCode(featuredSetting.value) : "";
+        featuredCouponCode = rawCode || null;
       }
     }
 
@@ -117,6 +124,7 @@ async function fetchSupabaseCatalog() {
       accepting,
       coupons: updatedCoupons,
       couponsEnabled,
+      featuredCouponCode,
     };
     isReady = true;
     notifyListeners();

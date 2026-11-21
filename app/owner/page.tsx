@@ -11,7 +11,7 @@ import { compressImage, formatBytes } from "@/lib/image-compress";
 const SESSION = "hadramout-local-owner-session";
 
 export default function OwnerPage() {
-  const { dishes, areas, categories, accepting, coupons, couponsEnabled, ready } = useCatalog();
+  const { dishes, areas, categories, accepting, coupons, couponsEnabled, featuredCouponCode, ready } = useCatalog();
   const [entered, setEntered] = useState(false);
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -100,7 +100,7 @@ export default function OwnerPage() {
   }
 
   function currentSnapshot(): Catalog {
-    return { dishes, areas, accepting, coupons, couponsEnabled };
+    return { dishes, areas, accepting, coupons, couponsEnabled, featuredCouponCode };
   }
 
   async function save(update: (data: Catalog) => Catalog, supabaseAction?: () => Promise<void>) {
@@ -460,18 +460,40 @@ export default function OwnerPage() {
     );
   }
 
+  async function handleFeatureCoupon(code: string) {
+    const clean = normalizeCouponCode(code);
+    const isAlreadyFeatured = featuredCouponCode && normalizeCouponCode(featuredCouponCode) === clean;
+    const nextCode = isAlreadyFeatured ? null : clean;
+    await save(
+      data => ({ ...data, featuredCouponCode: nextCode }),
+      async () => {
+        if (supabase) {
+          const { error: setError } = await supabase
+            .from("restaurant_settings")
+            .upsert({ key: "featured_coupon_code", value: nextCode ?? "" });
+          if (setError) throw new Error(setError.message);
+        }
+      }
+    );
+  }
+
   async function handleDeleteCoupon(id: string, code: string) {
     if (!window.confirm(`هل أنت متأكد من حذف كوبون "${code}" نهائياً؟`)) return;
 
     try {
+      const wasFeatured = featuredCouponCode && normalizeCouponCode(featuredCouponCode) === normalizeCouponCode(code);
       if (isSupabaseConfigured && supabase) {
         const { error: delError } = await supabase.from("coupons").delete().eq("id", id);
         if (delError) throw new Error(delError.message);
+        if (wasFeatured) {
+          await supabase.from("restaurant_settings").upsert({ key: "featured_coupon_code", value: "" });
+        }
       }
 
       saveCatalog({
         ...currentSnapshot(),
         coupons: coupons.filter(c => c.id !== id),
+        featuredCouponCode: wasFeatured ? null : featuredCouponCode,
       });
 
       setNotice(`تم حذف كوبون "${code}" بنجاح.`);
@@ -1035,8 +1057,11 @@ export default function OwnerPage() {
               <div className="coupon-editor-grid">
                 {coupons.map(c => {
                   const exhausted = isCouponExhausted(c);
+                  const isFeatured = Boolean(
+                    featuredCouponCode && normalizeCouponCode(featuredCouponCode) === normalizeCouponCode(c.code)
+                  );
                   return (
-                    <article className={`coupon-card ${(!c.active || exhausted) ? "is-inactive" : ""}`} key={c.id}>
+                    <article className={`coupon-card ${(!c.active || exhausted) ? "is-inactive" : ""} ${isFeatured && c.active && !exhausted ? "is-featured" : ""}`} key={c.id}>
                       <div className="coupon-card-top">
                         <span className="coupon-code-badge" dir="ltr">{c.code}</span>
                         <span className="coupon-type-pill">
@@ -1058,6 +1083,16 @@ export default function OwnerPage() {
                             : `الاستخدام: ${c.usedCount} / ${c.maxUses} (متبقي ${Math.max(0, c.maxUses - c.usedCount)} — مرة واحدة لكل شخص)`
                           : `الاستخدام: ${c.usedCount} مرة (غير محدود · مرة واحدة لكل شخص)`}
                       </p>
+                      {!exhausted && c.active && (
+                        <button
+                          type="button"
+                          className={`coupon-pin-btn ${isFeatured ? "is-pinned" : ""}`}
+                          onClick={() => handleFeatureCoupon(c.code)}
+                        >
+                          <Icon name="star" size={14}/>
+                          {isFeatured ? "مثبّت كعرض بارز أعلى الموقع · إلغاء التثبيت" : "تثبيت كعرض بارز أعلى الموقع"}
+                        </button>
+                      )}
                       <div className="coupon-card-actions">
                         <button
                           type="button"

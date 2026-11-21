@@ -85,3 +85,32 @@
 .coupon-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 10px; border-top: 1px dashed #e5dfcc; }
 .coupon-toggle-btn { flex: 1; border-radius: 8px; padding: 9px 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid #d2dccb; background: #eaf3e5; color: #3a6831; }
 .coupon-toggle-btn.is-off { background: #f6ebe3; border-color: #e7d1c0; color: #9c5b37; }
+
+/* Cart smart upsell ("كمّل سفرتك؟") & coupon progress bar & owner pin button */
+.cart-upsell { background: #f8f5ec; border: 1px solid #e6dfc9; border-radius: 12px; padding: 13px 14px; margin: 14px 0; }
+.cart-upsell-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cart-upsell-head span { font-size: 13px; font-weight: 700; color: #263c2b; }
+.cart-upsell-head small { font-size: 10px; color: #8c856b; }
+.cart-upsell-list { display: flex; flex-direction: column; gap: 8px; }
+.cart-upsell-item { display: flex; align-items: center; gap: 10px; background: #fffefb; border: 1px solid #eae4d4; border-radius: 10px; padding: 8px 10px; transition: border-color .2s; }
+.cart-upsell-item:hover { border-color: #c8b583; }
+.cart-upsell-item img { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.cart-upsell-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cart-upsell-info strong { font-size: 12px; color: #223526; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-upsell-info span { font-size: 11px; font-weight: 700; color: #8b7440; }
+.cart-upsell-add { display: inline-flex; align-items: center; gap: 5px; background: #263c2b; color: #f8eed6; border-radius: 20px; padding: 6px 12px; font-size: 11px; font-weight: 700; white-space: nowrap; transition: background .2s, transform .15s; }
+.cart-upsell-add:hover { background: #1a2c20; transform: translateY(-1px); }
+
+.coupon-progress-wrap { background: #fdf7e7; border: 1px solid #ebd7a7; border-radius: 9px; padding: 10px 12px; margin-bottom: 10px; }
+.coupon-progress-wrap p { font-size: 11px; line-height: 1.6; color: #6c5323; margin-bottom: 7px; }
+.coupon-progress-track { height: 6px; background: #efe4c6; border-radius: 99px; overflow: hidden; }
+.coupon-progress-track > span { display: block; height: 100%; background: linear-gradient(90deg, #b8964c, #dfc48b); border-radius: 99px; transition: width .35s ease; }
+
+.coupon-quick-promo { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #edf5ea; border: 1px solid #c9e1c3; border-radius: 9px; padding: 8px 11px; margin-bottom: 10px; font-size: 11px; color: #2f5b28; flex-wrap: wrap; }
+.coupon-quick-apply { background: #2f5b28; color: #fff; border-radius: 7px; padding: 5px 11px; font-size: 11px; font-weight: 700; white-space: nowrap; cursor: pointer; border: none; }
+.coupon-quick-apply:hover { background: #22441d; }
+
+.coupon-card.is-featured { border-color: #c8a85e; box-shadow: 0 6px 22px rgba(185, 152, 74, .16); }
+.coupon-pin-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px dashed #c8b683; background: #faf6ea; color: #7a632c; transition: all .2s; }
+.coupon-pin-btn:hover { background: #f2ead4; border-color: #a68b46; }
+.coupon-pin-btn.is-pinned { background: #24392a; border: 1px solid #24392a; color: #f0d797; }

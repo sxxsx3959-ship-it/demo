@@ -5,12 +5,12 @@ import { calculateDiscount, dishImage, isCouponUsable, MAX_QUANTITY, money, norm
 import OrderSubmit from "./OrderSubmit";
 import { useCatalog } from "@/lib/use-catalog";
 import { createOrderQuote, normalizePhone, type OrderQuote } from "@/lib/order";
-import { verifyCouponEligibility } from "@/lib/device-coupons";
+import { hasUsedCouponOnDevice, verifyCouponEligibility } from "@/lib/device-coupons";
 
 type Props = { items: CartItem[]; onChange: (id: number, delta: number) => void; onRemove: (id: number) => void; onClose: () => void };
 
 export default function Cart({ items, onChange, onRemove, onClose }: Props) {
-  const { dishes, areas, accepting, coupons, couponsEnabled } = useCatalog();
+  const { dishes, areas, accepting, coupons, couponsEnabled, featuredCouponCode } = useCatalog();
 
   function close() { onClose(); }
   const dialog = useRef<HTMLDialogElement>(null);
@@ -52,6 +52,39 @@ export default function Cart({ items, onChange, onRemove, onClose }: Props) {
   const discountAmount = appliedCoupon && !minOrderUnmet ? calculateDiscount(subtotal, appliedCoupon) : 0;
   const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
 
+  // مقترحات «كمّل سفرتك؟» الذكية: أصناف متوفرة غير موجودة في السلة (المشروبات والإضافات أولاً)
+  const upsellDishes = dishes
+    .filter(d => d.available && !items.some(i => i.id === d.id))
+    .sort((a, b) => {
+      const aDrink = a.category === "drinks" ? 0 : 1;
+      const bDrink = b.category === "drinks" ? 0 : 1;
+      if (aDrink !== bDrink) return aDrink - bDrink;
+      return a.price - b.price;
+    })
+    .slice(0, 3);
+
+  // كوبون العرض البارز لتشجيع الزبون داخل السلة
+  const promoCoupon =
+    couponsEnabled && featuredCouponCode
+      ? coupons.find(
+          c =>
+            normalizeCouponCode(c.code) === normalizeCouponCode(featuredCouponCode) &&
+            isCouponUsable(c) &&
+            !hasUsedCouponOnDevice(c.code)
+        ) ?? null
+      : null;
+
+  // هدف الحد الأدنى للتحفيز (إما للكوبون المطبق أو لكوبون العرض البارز)
+  const targetCouponForProgress = appliedCoupon && minOrderUnmet
+    ? appliedCoupon
+    : !appliedCoupon && promoCoupon && promoCoupon.minOrder > 0 && subtotal < promoCoupon.minOrder
+      ? promoCoupon
+      : null;
+  const remainingForCoupon = targetCouponForProgress ? Math.max(0, targetCouponForProgress.minOrder - subtotal) : 0;
+  const progressPercent = targetCouponForProgress && targetCouponForProgress.minOrder > 0
+    ? Math.min(100, Math.round((subtotal / targetCouponForProgress.minOrder) * 100))
+    : 0;
+
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     const old = document.body.style.overflow;
@@ -63,9 +96,11 @@ export default function Cart({ items, onChange, onRemove, onClose }: Props) {
     };
   }, []);
 
-  async function applyCoupon() {
+  async function applyCoupon(overrideCode?: string) {
     if (checkingCoupon) return;
-    const code = normalizeCouponCode(couponInput);
+    const raw = typeof overrideCode === "string" ? overrideCode : couponInput;
+    const code = normalizeCouponCode(raw);
+    if (typeof overrideCode === "string") setCouponInput(code);
     if (!code) {
       setCouponFeedback({ ok: false, text: "أدخل كود الخصم أولاً." });
       return;
@@ -351,12 +386,71 @@ export default function Cart({ items, onChange, onRemove, onClose }: Props) {
               ))}
             </div>
 
+            {accepting && upsellDishes.length > 0 && (
+              <div className="cart-upsell" aria-label="أصناف مقترحة لإكمال طلبك">
+                <div className="cart-upsell-head">
+                  <span>✦ كمّل سفرتك؟</span>
+                  <small>أضف بلمسة واحدة</small>
+                </div>
+                <div className="cart-upsell-list">
+                  {upsellDishes.map(d => (
+                    <div className="cart-upsell-item" key={d.id}>
+                      <img src={dishImage(d.image)} alt={d.title} loading="lazy" />
+                      <div className="cart-upsell-info">
+                        <strong>{d.title}</strong>
+                        <span>{money(d.price)} <small>د.ع</small></span>
+                      </div>
+                      <button
+                        type="button"
+                        className="cart-upsell-add"
+                        onClick={() => onChange(d.id, 1)}
+                        disabled={loading}
+                        aria-label={`أضف ${d.title} إلى السلة`}
+                      >
+                        <Icon name="plus" size={13} /> أضف
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {couponsEnabled && (
               <div className="coupon-box">
                 <div className="coupon-box-head">
                   <Icon name="tag" size={16} />
                   <span>عندك كود خصم؟</span>
                 </div>
+                {targetCouponForProgress && remainingForCoupon > 0 && (
+                  <div className="coupon-progress-wrap">
+                    <p>
+                      أضف بـ <b>{money(remainingForCoupon)} د.ع</b> بعد حتى تستفيد من كود{" "}
+                      <strong dir="ltr">{targetCouponForProgress.code}</strong>{" "}
+                      (خصم {targetCouponForProgress.discountType === "percent"
+                        ? `${targetCouponForProgress.discountValue}%`
+                        : `${money(targetCouponForProgress.discountValue)} د.ع`})!
+                    </p>
+                    <div className="coupon-progress-track">
+                      <span style={{ width: `${progressPercent}%` }} />
+                    </div>
+                  </div>
+                )}
+                {!appliedCoupon && promoCoupon && (promoCoupon.minOrder === 0 || subtotal >= promoCoupon.minOrder) && (
+                  <div className="coupon-quick-promo">
+                    <span>
+                      ✦ عرض متاح الآن: <strong dir="ltr">{promoCoupon.code}</strong>{" "}
+                      (خصم {promoCoupon.discountType === "percent" ? `${promoCoupon.discountValue}%` : `${money(promoCoupon.discountValue)} د.ع`})
+                    </span>
+                    <button
+                      type="button"
+                      className="coupon-quick-apply"
+                      onClick={() => applyCoupon(promoCoupon.code)}
+                      disabled={checkingCoupon}
+                    >
+                      تطبيق فوري
+                    </button>
+                  </div>
+                )}
                 {appliedCoupon ? (
                   <div className="coupon-applied-row">
                     <div>
@@ -391,7 +485,7 @@ export default function Cart({ items, onChange, onRemove, onClose }: Props) {
                       dir="ltr"
                       maxLength={32}
                     />
-                    <button type="button" className="coupon-apply-btn" onClick={applyCoupon} disabled={checkingCoupon}>
+                    <button type="button" className="coupon-apply-btn" onClick={() => applyCoupon()} disabled={checkingCoupon}>
                       {checkingCoupon ? "جارٍ الفحص..." : "تطبيق"}
                     </button>
                   </div>

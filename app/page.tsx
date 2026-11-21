@@ -5,11 +5,11 @@ import { useCatalog } from "@/lib/use-catalog";
 import GatheringPlanner from "@/components/GatheringPlanner";
 import Cart from "@/components/Cart";
 import RestaurantWelcome from "@/components/RestaurantWelcome";
-import { CART_KEY, MAX_QUANTITY, dishImage, money, restaurant, sanitizeCart, type CartItem } from "@/lib/restaurant";
+import { CART_KEY, MAX_QUANTITY, dishImage, isCouponUsable, money, normalizeCouponCode, restaurant, sanitizeCart, type CartItem } from "@/lib/restaurant";
 
 type Modal = { type: "story" | "gallery" | "privacy" } | { type: "dish"; id: number } | null;
 export default function Home() {
-  const { dishes, areas, categories, accepting, ready: menuReady } = useCatalog();
+  const { dishes, areas, categories, accepting, coupons, couponsEnabled, featuredCouponCode, ready: menuReady } = useCatalog();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [category, setCategory] = useState("all");
   const [modal, setModal] = useState<Modal>(null);
@@ -18,11 +18,20 @@ export default function Home() {
   const [cartOpen, setCartOpen] = useState(false);
   const [noticeVisible, setNoticeVisible] = useState(true);
   const [addedMessage, setAddedMessage] = useState("");
+  const [copiedPromo, setCopiedPromo] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + (dishes.find(d => d.id === item.id)?.price ?? 0) * item.quantity, 0);
   const visibleDishes = category === "all" ? dishes.filter(d => d.available) : dishes.filter(d => d.category === category);
   const activeDish = modal?.type === "dish" ? dishes.find(d => d.id === modal.id) : undefined;
+  const featuredCoupon =
+    couponsEnabled && featuredCouponCode
+      ? coupons.find(c => normalizeCouponCode(c.code) === normalizeCouponCode(featuredCouponCode) && isCouponUsable(c)) ?? null
+      : null;
+  const featuredRemaining = featuredCoupon && featuredCoupon.maxUses > 0
+    ? Math.max(0, featuredCoupon.maxUses - featuredCoupon.usedCount)
+    : null;
   const nav = [{ label: "الرئيسية", target: "home" }, { label: "قائمتنا", target: "menu" }, { label: "عن حضرموت", target: "about" }, { label: "المعرض", target: "gallery" }, { label: "التوصيل", target: "delivery" }, { label: "المناسبات", target: "occasions" }, { label: "تواصل معنا", target: "contact" }];
   useEffect(() => {
     try { setCart(sanitizeCart(JSON.parse(localStorage.getItem(CART_KEY) || "[]"))); } catch { setCart([]); }
@@ -34,6 +43,42 @@ export default function Home() {
   }, []);
   useEffect(() => { if (cartReady) { try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch { /* Cart remains usable when browser storage is unavailable. */ } } }, [cart, cartReady]);
   useEffect(() => { if (!addedMessage) return; const timeout = window.setTimeout(() => setAddedMessage(""), 2200); return () => window.clearTimeout(timeout); }, [addedMessage]);
+  useEffect(() => { if (!copiedPromo) return; const timeout = window.setTimeout(() => setCopiedPromo(false), 2400); return () => window.clearTimeout(timeout); }, [copiedPromo]);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 18);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("#main > section"));
+    if (!sections.length) return;
+    document.documentElement.classList.add("reveal-ready");
+    const observer = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0.06, rootMargin: "0px 0px -24px 0px" }
+    );
+    for (const section of sections) {
+      const rect = section.getBoundingClientRect();
+      if (rect.top < window.innerHeight * 0.95) {
+        section.classList.add("is-visible");
+      } else {
+        observer.observe(section);
+      }
+    }
+    return () => {
+      observer.disconnect();
+      document.documentElement.classList.remove("reveal-ready");
+    };
+  }, []);
   useEffect(() => {
     if (!modal) return;
     const opener = document.activeElement as HTMLElement | null;
@@ -41,6 +86,21 @@ export default function Home() {
     dialog.current?.showModal(); document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = old; opener?.focus(); };
   }, [modal]);
+  async function copyPromoCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch {
+      const tmp = document.createElement("textarea");
+      tmp.value = code;
+      tmp.style.position = "fixed";
+      tmp.style.opacity = "0";
+      document.body.appendChild(tmp);
+      tmp.select();
+      try { document.execCommand("copy"); } catch {}
+      document.body.removeChild(tmp);
+    }
+    setCopiedPromo(true);
+  }
   function closeModal() { dialog.current?.close(); setModal(null); }
   function openCart() { closeModal(); setMobileOpen(false); setCartOpen(true); }
   function chooseCategory(id: string) { setCategory(id); document.getElementById("dishes")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
@@ -56,8 +116,43 @@ export default function Home() {
   function addDish(id: number) { if (!accepting) return; changeQuantity(id, 1); setAddedMessage(`أضفنا ${dishes.find(d => d.id === id)?.title} إلى سلتك`); }
   return <>
     <a href="#main" className="skip-link">انتقل إلى المحتوى</a>
-    {noticeVisible && <div className="announcement"><div className="container announcement-inner"><span className="announcement-location"><Icon name="pin" size={13}/> الناصرية، شارع الإمام علي</span><p><span className="tiny-flower">✦</span> من حضرموت… إلى سفرتكم <a href="#dishes">اطلب وجبتك <Icon name="arrow" size={13}/></a></p><button onClick={() => setNoticeVisible(false)} aria-label="إغلاق الشريط" className="announcement-close"><Icon name="close" size={13}/></button></div></div>}
-    <header className="header"><div className="container header-inner"><Logo/><nav className={`nav ${mobileOpen ? "nav-open" : ""}`} aria-label="القائمة الرئيسية">{nav.map((item, i) => item.target === "gallery" ? <button key={item.target} onClick={() => { setMobileOpen(false); setModal({ type: "gallery" }); }}>{item.label}</button> : <a className={i === 0 ? "nav-home" : ""} href={`#${item.target}`} key={item.target} onClick={() => setMobileOpen(false)}>{item.label}</a>)}</nav><div className="header-actions"><button className="header-cart button button-dark" onClick={openCart} aria-label={`افتح السلة، ${cartCount} أصناف`}><Icon name="bag" size={19}/><span>سلة الطلب</span><b className="cart-counter">{cartCount}</b></button><button className="mobile-toggle icon-button" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-expanded={mobileOpen}><Icon name={mobileOpen ? "close" : "menu"}/></button></div></div></header>
+    {featuredCoupon ? (
+      <div className="promo-coupon-bar" role="region" aria-label="عرض الخصم الحالي">
+        <div className="container promo-coupon-inner">
+          <div className="promo-coupon-text">
+            <span className="promo-sparkle" aria-hidden="true">✦</span>
+            <span>
+              <strong>عرض اليوم:</strong> خصم{" "}
+              <b>
+                {featuredCoupon.discountType === "percent"
+                  ? `${featuredCoupon.discountValue}%`
+                  : `${money(featuredCoupon.discountValue)} د.ع`}
+              </b>{" "}
+              بكود <code className="promo-code-pill" dir="ltr">{featuredCoupon.code}</code>
+              {featuredRemaining !== null && (
+                <span className="promo-scarcity">
+                  {" "}— {featuredRemaining === 1 ? "متبقي لشخص واحد فقط!" : `متبقي لـ ${featuredRemaining} أشخاص فقط!`}
+                </span>
+              )}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={`promo-copy-btn ${copiedPromo ? "is-copied" : ""}`}
+            onClick={() => copyPromoCode(featuredCoupon.code)}
+          >
+            {copiedPromo ? (
+              <><Icon name="check" size={13}/> تم النسخ — الصقه بالسلة</>
+            ) : (
+              <><Icon name="tag" size={13}/> نسخ الكود</>
+            )}
+          </button>
+        </div>
+      </div>
+    ) : (
+      noticeVisible && <div className="announcement"><div className="container announcement-inner"><span className="announcement-location"><Icon name="pin" size={13}/> الناصرية، شارع الإمام علي</span><p><span className="tiny-flower">✦</span> من حضرموت… إلى سفرتكم <a href="#dishes">اطلب وجبتك <Icon name="arrow" size={13}/></a></p><button onClick={() => setNoticeVisible(false)} aria-label="إغلاق الشريط" className="announcement-close"><Icon name="close" size={13}/></button></div></div>
+    )}
+    <header className={`header ${scrolled ? "is-scrolled" : ""}`}><div className="container header-inner"><Logo/><nav className={`nav ${mobileOpen ? "nav-open" : ""}`} aria-label="القائمة الرئيسية">{nav.map((item, i) => item.target === "gallery" ? <button key={item.target} onClick={() => { setMobileOpen(false); setModal({ type: "gallery" }); }}>{item.label}</button> : <a className={i === 0 ? "nav-home" : ""} href={`#${item.target}`} key={item.target} onClick={() => setMobileOpen(false)}>{item.label}</a>)}</nav><div className="header-actions"><button className="header-cart button button-dark" onClick={openCart} aria-label={`افتح السلة، ${cartCount} أصناف`}><Icon name="bag" size={19}/><span>سلة الطلب</span><b className="cart-counter">{cartCount}</b></button><button className="mobile-toggle icon-button" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-expanded={mobileOpen}><Icon name={mobileOpen ? "close" : "menu"}/></button></div></div></header>
     <main id="main">
       {!accepting && <div className="ordering-paused" role="status">استقبال الطلبات متوقف مؤقتًا. تقدر تتصفح المنيو وترجع بعدين.</div>}
       <RestaurantWelcome onStory={() => setModal({ type: "story" })}/>

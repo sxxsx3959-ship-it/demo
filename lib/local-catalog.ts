@@ -8,6 +8,7 @@ export type Catalog = {
   accepting: boolean;
   coupons: Coupon[];
   couponsEnabled: boolean;
+  featuredCouponCode: string | null;
 };
 
 export const CATALOG_KEY = "hadramout-local-catalog-v1";
@@ -113,6 +114,10 @@ export function normalizeCatalog(value: unknown): Catalog {
       return valid ? [valid] : [];
     }),
     couponsEnabled: typeof raw.couponsEnabled === "boolean" ? raw.couponsEnabled : true,
+    featuredCouponCode:
+      typeof raw.featuredCouponCode === "string" && raw.featuredCouponCode.trim()
+        ? normalizeCouponCode(raw.featuredCouponCode)
+        : null,
   };
 }
 
